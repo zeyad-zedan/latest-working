@@ -271,7 +271,7 @@ function retakeQuiz() {
 
 function goBack() {
     clearInterval(timerInterval);
-    window.location.href = `subject-passages.html?subject=${currentPassage.subject}`;
+    window.location.href = 'subjects.html';
 }
 
 // Close modal when clicking outside
