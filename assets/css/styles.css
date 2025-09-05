@@ -1481,7 +1481,7 @@ p {
 }
 
 .auth-links {
-    display: none;
+    display: flex;
     gap: 1rem;
     align-items: center;
 }

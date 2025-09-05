@@ -1,61 +1,65 @@
-import { authManager } from './auth.js';
-import { getUserStats, getAttemptsForUser } from './attempts.js';
-
-document.addEventListener('DOMContentLoaded', async () => {
-    if (!authManager.isAuthenticated()) {
+// Progress tracking functionality
+document.addEventListener('DOMContentLoaded', function() {
+    if (!auth.currentUser) {
         window.location.href = 'login.html';
         return;
     }
 
-    await loadProgressData();
+    loadProgressData();
 });
 
-async function loadProgressData() {
-    try {
-        const [stats, attempts] = await Promise.all([
-            getUserStats(),
-            getAttemptsForUser({ limitCount: 50 })
-        ]);
+function loadProgressData() {
+    const progress = auth.getUserProgress();
+    if (!progress) return;
 
-        const streak = calculateCurrentStreak(attempts);
+    // Update overall stats
+    document.getElementById('total-attempts').textContent = progress.overall.totalQuizzes;
+    document.getElementById('overall-average').textContent = progress.overall.averageScore + '%';
+    
+    const totalHours = Math.floor(progress.overall.totalTime / 3600);
+    const totalMinutes = Math.floor((progress.overall.totalTime % 3600) / 60);
+    document.getElementById('total-time').textContent = totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m`;
+    
+    document.getElementById('current-streak').textContent = progress.overall.currentStreak;
 
-        // Update overall stats
-        document.getElementById('total-attempts').textContent = stats.totalAttempts;
-        document.getElementById('overall-average').textContent = `${stats.averageScore}%`;
-        const hours = Math.floor(stats.totalTimeMinutes / 60);
-        const minutes = stats.totalTimeMinutes % 60;
-        document.getElementById('total-time').textContent =
-            hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-        document.getElementById('current-streak').textContent = streak;
-
-        renderSubjectProgress(stats.subjectStats);
-        renderRecentActivity(attempts);
-        renderAchievements(stats, attempts, streak);
-    } catch (err) {
-        console.error('Error loading progress:', err);
-        toast.error('Failed to load progress');
-    }
+    // Render subject progress
+    renderSubjectProgress(progress.subjects);
+    
+    // Render recent activity
+    renderRecentActivity(progress.recentAttempts);
+    
+    // Render achievements
+    renderAchievements(progress);
 }
 
-function renderSubjectProgress(subjectStats) {
+function renderSubjectProgress(subjects) {
     const container = document.getElementById('subject-progress');
+    const subjectNames = {
+        biology: 'Biology',
+        physics: 'Physics', 
+        chemistry: 'Chemistry',
+        geology: 'Geology',
+        english: 'English'
+    };
+    
     const subjectIcons = {
-        Biology: '🧬',
-        Physics: '⚛️',
-        Chemistry: '⚗️',
-        Geology: '🌍',
-        English: '📖'
+        biology: '🧬',
+        physics: '⚛️',
+        chemistry: '⚗️',
+        geology: '🌍',
+        english: '📖'
     };
 
-    container.innerHTML = Object.entries(subjectStats).map(([subject, data]) => {
+    container.innerHTML = Object.entries(subjects).map(([subject, data]) => {
         const percentage = data.averageScore;
         const color = percentage >= 80 ? '#10b981' : percentage >= 60 ? '#f59e0b' : '#ef4444';
+        
         return `
             <div class="subject-progress-item">
                 <div class="subject-progress-header">
-                    <span class="subject-progress-icon">${subjectIcons[subject] || '📚'}</span>
+                    <span class="subject-progress-icon">${subjectIcons[subject]}</span>
                     <div class="subject-progress-info">
-                        <h4>${subject}</h4>
+                        <h4>${subjectNames[subject]}</h4>
                         <p>${data.attempts} attempt${data.attempts !== 1 ? 's' : ''}</p>
                     </div>
                     <div class="subject-progress-score">${percentage}%</div>
@@ -71,7 +75,7 @@ function renderSubjectProgress(subjectStats) {
 function renderRecentActivity(attempts) {
     const container = document.getElementById('activity-timeline');
     const passages = JSON.parse(localStorage.getItem('studysphere.passages.v1') || '[]');
-
+    
     if (attempts.length === 0) {
         container.innerHTML = `
             <div class="empty-activity">
@@ -85,10 +89,11 @@ function renderRecentActivity(attempts) {
 
     container.innerHTML = attempts.slice(0, 10).map(attempt => {
         const passage = passages.find(p => p.id === attempt.passageId);
-        const percentage = attempt.score;
+        const date = new Date(attempt.completedAt);
+        const timeAgo = getTimeAgo(date);
+        const percentage = Math.round((attempt.score / attempt.totalQuestions) * 100);
         const scoreColor = percentage >= 80 ? '#10b981' : percentage >= 60 ? '#f59e0b' : '#ef4444';
-        const timeAgo = getTimeAgo(attempt.attemptedAt);
-
+        
         return `
             <div class="activity-item">
                 <div class="activity-icon" style="background-color: ${scoreColor}">
@@ -96,7 +101,7 @@ function renderRecentActivity(attempts) {
                 </div>
                 <div class="activity-content">
                     <h4>${passage ? passage.title : 'Unknown Passage'}</h4>
-                    <p>Score: ${percentage}%</p>
+                    <p>Score: ${attempt.score}/${attempt.totalQuestions} (${percentage}%)</p>
                     <span class="activity-time">${timeAgo}</span>
                 </div>
                 <div class="activity-score" style="color: ${scoreColor}">
@@ -107,46 +112,49 @@ function renderRecentActivity(attempts) {
     }).join('');
 }
 
-function renderAchievements(stats, attempts, streak) {
+function renderAchievements(progress) {
     const container = document.getElementById('achievements-grid');
-    const achievements = calculateAchievements(stats, attempts, streak);
-
-    container.innerHTML = achievements.map(a => `
-        <div class="achievement-item ${a.unlocked ? 'unlocked' : 'locked'}">
-            <div class="achievement-icon">${a.icon}</div>
+    const achievements = calculateAchievements(progress);
+    
+    container.innerHTML = achievements.map(achievement => `
+        <div class="achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}">
+            <div class="achievement-icon">${achievement.icon}</div>
             <div class="achievement-content">
-                <h4>${a.title}</h4>
-                <p>${a.description}</p>
-                ${a.unlocked ? '<span class="achievement-date">Unlocked</span>' : `<span class="achievement-progress">${a.progress}</span>`}
+                <h4>${achievement.title}</h4>
+                <p>${achievement.description}</p>
+                ${achievement.unlocked ? 
+                    `<span class="achievement-date">Earned ${new Date(achievement.unlockedAt).toLocaleDateString()}</span>` :
+                    `<span class="achievement-progress">${achievement.progress}</span>`
+                }
             </div>
         </div>
     `).join('');
 }
 
-function calculateAchievements(stats, attempts, streak) {
-    return [
+function calculateAchievements(progress) {
+    const achievements = [
         {
             id: 'first_quiz',
             title: 'Getting Started',
             description: 'Complete your first quiz',
             icon: '🎯',
-            unlocked: stats.totalAttempts >= 1,
-            progress: `${Math.min(stats.totalAttempts, 1)}/1 quizzes`
+            unlocked: progress.overall.totalQuizzes >= 1,
+            progress: progress.overall.totalQuizzes >= 1 ? 'Complete!' : '0/1 quizzes'
         },
         {
             id: 'quiz_master',
             title: 'Quiz Master',
             description: 'Complete 10 quizzes',
             icon: '🏆',
-            unlocked: stats.totalAttempts >= 10,
-            progress: `${Math.min(stats.totalAttempts, 10)}/10 quizzes`
+            unlocked: progress.overall.totalQuizzes >= 10,
+            progress: `${Math.min(progress.overall.totalQuizzes, 10)}/10 quizzes`
         },
         {
             id: 'perfect_score',
             title: 'Perfect Score',
             description: 'Get 100% on any quiz',
             icon: '⭐',
-            unlocked: attempts.some(a => a.score === 100),
+            unlocked: auth.getQuizAttempts().some(a => (a.score / a.totalQuestions) === 1),
             progress: 'Get 100% on a quiz'
         },
         {
@@ -154,45 +162,35 @@ function calculateAchievements(stats, attempts, streak) {
             title: 'Consistent Learner',
             description: 'Study for 7 days in a row',
             icon: '🔥',
-            unlocked: streak >= 7,
-            progress: `${Math.min(streak, 7)}/7 days`
+            unlocked: progress.overall.currentStreak >= 7,
+            progress: `${Math.min(progress.overall.currentStreak, 7)}/7 days`
         },
         {
             id: 'all_subjects',
             title: 'Well Rounded',
             description: 'Complete quizzes in all 5 subjects',
             icon: '🌟',
-            unlocked: Object.values(stats.subjectStats).filter(s => s.attempts > 0).length >= 5,
-            progress: `${Object.values(stats.subjectStats).filter(s => s.attempts > 0).length}/5 subjects`
+            unlocked: Object.values(progress.subjects).filter(s => s.attempts > 0).length >= 5,
+            progress: `${Object.values(progress.subjects).filter(s => s.attempts > 0).length}/5 subjects`
         },
         {
             id: 'speed_demon',
             title: 'Speed Demon',
             description: 'Complete a quiz in under 5 minutes',
             icon: '⚡',
-            unlocked: attempts.some(a => a.timeTakenSec < 300),
+            unlocked: auth.getQuizAttempts().some(a => a.timeElapsed < 300),
             progress: 'Complete a quiz quickly'
         }
     ];
-}
-
-function calculateCurrentStreak(attempts) {
-    if (attempts.length === 0) return 0;
-    const dates = attempts.map(a => a.attemptedAt).sort((a, b) => b - a);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let streak = 0;
-    for (const date of dates) {
-        const d = new Date(date);
-        d.setHours(0, 0, 0, 0);
-        const diff = Math.round((today - d) / (1000 * 60 * 60 * 24));
-        if (diff === streak) {
-            streak++;
-        } else if (diff > streak) {
-            break;
+    
+    // Add unlock dates for unlocked achievements
+    achievements.forEach(achievement => {
+        if (achievement.unlocked && !achievement.unlockedAt) {
+            achievement.unlockedAt = new Date().toISOString();
         }
-    }
-    return streak;
+    });
+    
+    return achievements;
 }
 
 function getTimeAgo(date) {
@@ -201,9 +199,11 @@ function getTimeAgo(date) {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-
+    
+    if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString();
 }
-

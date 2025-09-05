@@ -246,26 +246,14 @@ export async function getRecentAttempts(count = 10) {
 }
 
 /**
- * Check if user has already attempted a passage
- * @param {string} passageId - Passage ID
- * @returns {Promise<boolean>} - Whether an attempt exists
- */
-export async function hasAttemptForPassage(passageId) {
-  const attempts = await getAttemptsForPassage(passageId);
-  return attempts.length > 0;
-}
-
-/**
- * Check if user can retake a passage
+ * Check if user can retake a passage (no restrictions for now)
  * @param {string} passageId - Passage ID
  * @returns {Promise<boolean>} - Whether user can retake
  */
 export async function canRetakePassage(passageId) {
-  if (!authManager.isAuthenticated()) {
-    return true;
-  }
-
-  return !(await hasAttemptForPassage(passageId));
+  // For now, allow unlimited retakes
+  // In the future, you might want to implement restrictions
+  return true;
 }
 
 /**

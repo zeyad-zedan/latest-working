@@ -7,7 +7,6 @@
     <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
     <link rel="stylesheet" href="assets/css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" src="assets/js/auth.js"></script>
 </head>
 <body>
     <!-- Firebase Config (paste your config here) -->
@@ -164,6 +163,7 @@
     </div>
 
     <script type="module">
+        import { authManager } from './assets/js/auth.js';
         import { getPublishedPassagesBySubject, getPassage } from './assets/js/passages.js';
         import { saveAttempt } from './assets/js/attempts.js';
         import { showToast, formatDuration } from './assets/js/ui.js';
@@ -387,6 +387,8 @@
             document.getElementById(`${tabName}-tab`).style.display = 'block';
         };
 
+        // Make authManager globally available
+        window.authManager = authManager;
     </script>
 
     <!-- Auth Modal -->
@@ -544,5 +546,6 @@
         // Load stats when page loads
         document.addEventListener('DOMContentLoaded', loadSubjectStats);
     </script>
+    <script src="assets/js/auth.js"></script>
 </body>
 </html>
