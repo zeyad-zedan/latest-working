@@ -387,6 +387,10 @@ class AuthManager {
 // Global auth manager instance
 export const authManager = new AuthManager();
 
+// Make authManager globally available and update navigation on load
+window.authManager = authManager;
+authManager.updateNavigation();
+
 // Global functions for HTML onclick handlers
 window.toggleUserMenu = function() {
   const dropdown = document.getElementById('user-dropdown-menu');
