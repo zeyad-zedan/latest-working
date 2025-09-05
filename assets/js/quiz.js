@@ -1,3 +1,6 @@
+import { saveAttempt, getAttemptsForPassage } from './attempts.js';
+import { authManager } from './auth.js';
+
 // Quiz functionality
 let currentPassage = null;
 let startTime = null;
@@ -6,10 +9,10 @@ let timeLimit = 0;
 let userAnswers = {};
 
 // Initialize quiz
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     const urlParams = new URLSearchParams(window.location.search);
     const passageId = urlParams.get('passage');
-    
+
     if (!passageId) {
         toast.error('No passage specified');
         setTimeout(() => {
@@ -17,14 +20,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000);
         return;
     }
-    
-    loadQuiz(passageId);
+
+    await loadQuiz(passageId);
 });
 
-function loadQuiz(passageId) {
+async function loadQuiz(passageId) {
     const passages = JSON.parse(localStorage.getItem('studysphere.passages.v1') || '[]');
     currentPassage = passages.find(p => p.id === passageId);
-    
+
     if (!currentPassage) {
         toast.error('Passage not found');
         setTimeout(() => {
@@ -32,18 +35,33 @@ function loadQuiz(passageId) {
         }, 2000);
         return;
     }
-    
+
+    if (authManager.isAuthenticated()) {
+        try {
+            const attempts = await getAttemptsForPassage(passageId);
+            if (attempts.length > 0) {
+                toast.error('You have already completed this quiz.');
+                setTimeout(() => {
+                    window.location.href = `subject-passages.html?subject=${currentPassage.subject}`;
+                }, 2000);
+                return;
+            }
+        } catch (error) {
+            console.error('Error checking previous attempts:', error);
+        }
+    }
+
     // Initialize quiz data
     timeLimit = currentPassage.timeLimit * 60; // Convert to seconds
     startTime = Date.now();
     userAnswers = {};
-    
+
     // Populate quiz UI
     document.getElementById('quiz-title').textContent = currentPassage.title;
     document.getElementById('quiz-difficulty').textContent = currentPassage.difficulty;
     document.getElementById('quiz-difficulty').className = `difficulty-badge ${currentPassage.difficulty.toLowerCase()}`;
     document.getElementById('quiz-subject').textContent = currentPassage.subject.charAt(0).toUpperCase() + currentPassage.subject.slice(1);
-    
+
     // Show category if it exists
     const categoryElement = document.getElementById('quiz-category');
     if (currentPassage.category) {
@@ -52,13 +70,13 @@ function loadQuiz(passageId) {
     } else {
         categoryElement.style.display = 'none';
     }
-    
+
     document.getElementById('passage-text').textContent = currentPassage.text;
     document.getElementById('questions-count').textContent = `${currentPassage.questions.length} questions`;
-    
+
     // Render questions
     renderQuestions();
-    
+
     // Start timer
     startTimer();
 }
@@ -203,7 +221,7 @@ function calculateScore() {
     };
 }
 
-function showResults(results, autoSubmit) {
+async function showResults(results, autoSubmit) {
     // Populate results modal
     document.getElementById('score-percentage').textContent = `${results.percentage}%`;
     document.getElementById('score-fraction').textContent = `${results.correct}/${results.total}`;
@@ -236,12 +254,18 @@ function showResults(results, autoSubmit) {
     }
     
     // Record quiz attempt if user is logged in
-    if (auth.currentUser) {
-        const score = results.correct;
-        const timeElapsed = results.timeElapsed;
-        const totalQuestions = results.total;
-        
-        auth.recordQuizAttempt(currentPassage.id, score, timeElapsed, totalQuestions);
+    if (authManager.isAuthenticated()) {
+        try {
+            await saveAttempt({
+                passageId: currentPassage.id,
+                subject: currentPassage.subject,
+                score: results.percentage,
+                answers: userAnswers,
+                timeTakenSec: results.timeElapsed
+            });
+        } catch (error) {
+            console.error('Failed to save attempt:', error);
+        }
     }
 }
 
@@ -296,3 +320,9 @@ document.addEventListener('keydown', function(e) {
         submitQuiz();
     }
 });
+
+// Expose functions for inline handlers
+window.selectAnswer = selectAnswer;
+window.submitQuiz = submitQuiz;
+window.retakeQuiz = retakeQuiz;
+window.goBack = goBack;
