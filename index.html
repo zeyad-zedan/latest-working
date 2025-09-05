@@ -7,6 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
     <link rel="stylesheet" href="assets/css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="assets/js/auth.js"></script>
 </head>
 <body>
     <!-- Firebase Config (paste your config here) -->
@@ -280,9 +281,7 @@
             document.getElementById(`${tabName}-tab`).style.display = 'block';
         }
     </script>
-    <script type="module">
-        import { authManager } from './assets/js/auth.js';
-        window.authManager = authManager;
+    <script>
         window.showAuthTab = showAuthTab;
     </script>
 </body>
