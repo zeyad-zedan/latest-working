@@ -68,7 +68,8 @@ export async function saveAttempt(attemptData) {
  */
 export async function getAttemptsForUser(options = {}) {
   if (!authManager.isAuthenticated()) {
-    throw new Error('Authentication required');
+    // Return empty array for demo
+    return [];
   }
   
   try {
@@ -136,7 +137,22 @@ export async function getAttemptsForUser(options = {}) {
  */
 export async function getUserStats() {
   if (!authManager.isAuthenticated()) {
-    throw new Error('Authentication required');
+    // Return sample data for demo
+    return {
+      totalAttempts: 0,
+      averageScore: 0,
+      totalTimeMinutes: 0,
+      bestScore: 0,
+      recentScore: 0,
+      subjectStats: {
+        Biology: { attempts: 0, averageScore: 0, bestScore: 0, recentScore: 0 },
+        Chemistry: { attempts: 0, averageScore: 0, bestScore: 0, recentScore: 0 },
+        Physics: { attempts: 0, averageScore: 0, bestScore: 0, recentScore: 0 },
+        Geology: { attempts: 0, averageScore: 0, bestScore: 0, recentScore: 0 },
+        English: { attempts: 0, averageScore: 0, bestScore: 0, recentScore: 0 }
+      },
+      scoreHistory: []
+    };
   }
   
   try {

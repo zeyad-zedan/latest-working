@@ -14,6 +14,11 @@
  * @returns {Chart} - Chart.js instance
  */
 export function createScoreTrendChart(canvas, data, label = 'Score Over Time') {
+  if (!window.Chart) {
+    console.warn('Chart.js not loaded');
+    return null;
+  }
+  
   const ctx = canvas.getContext('2d');
   
   return new Chart(ctx, {
@@ -92,6 +97,11 @@ export function createScoreTrendChart(canvas, data, label = 'Score Over Time') {
  * @returns {Chart} - Chart.js instance
  */
 export function createSubjectPerformanceChart(canvas, subjectData) {
+  if (!window.Chart) {
+    console.warn('Chart.js not loaded');
+    return null;
+  }
+  
   const ctx = canvas.getContext('2d');
   
   const subjects = Object.keys(subjectData);
@@ -181,6 +191,11 @@ export function createSubjectPerformanceChart(canvas, subjectData) {
  * @returns {Chart} - Chart.js instance
  */
 export function createAttemptDistributionChart(canvas, subjectData) {
+  if (!window.Chart) {
+    console.warn('Chart.js not loaded');
+    return null;
+  }
+  
   const ctx = canvas.getContext('2d');
   
   const subjects = Object.keys(subjectData);
@@ -264,6 +279,11 @@ export function createAttemptDistributionChart(canvas, subjectData) {
  * @returns {Chart} - Chart.js instance
  */
 export function createProgressChart(canvas, data) {
+  if (!window.Chart) {
+    console.warn('Chart.js not loaded');
+    return null;
+  }
+  
   const ctx = canvas.getContext('2d');
   
   return new Chart(ctx, {
